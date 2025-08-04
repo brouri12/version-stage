@@ -4,10 +4,9 @@ controllers:
         namespace: App\Controller
     type: attribute
 
-root_to_login:
+root_to_home:
     path: /
     controller: Symfony\Bundle\FrameworkBundle\Controller\RedirectController
     defaults:
-        route: app_login
+        route: home
         permanent: true
-
