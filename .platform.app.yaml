@@ -17,7 +17,7 @@ web:
       passthru: "/index.php"
 
 relationships:
-  mysql: 'mysql:mysql'
+  database: 'database:mysql'
 
 variables:
   env:
