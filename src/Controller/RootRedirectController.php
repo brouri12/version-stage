@@ -8,7 +8,11 @@ use Symfony\Component\Routing\Annotation\Route;
 
 final class RootRedirectController extends AbstractController
 {
-    #[Route('/', name: 'root_redirect')]
+    #[Route(
+        '/',
+        name: 'root_redirect',
+        priority: 255
+    )]
     public function __invoke(): Response
     {
         return $this->redirectToRoute('app_login');
