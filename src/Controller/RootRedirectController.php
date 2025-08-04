@@ -5,11 +5,11 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 
-final class RootRedirectController extends AbstractController
+class RootRedirectController extends AbstractController
 {
-    #[Route('/', name: 'root_redirect', priority: 255)]
+    #[Route('/', name: 'root_redirect')]
     public function __invoke(): Response
     {
-        return $this->redirectToRoute('app_login');
+        return $this->redirectToRoute('home', status: 302);
     }
 }
