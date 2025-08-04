@@ -1,21 +1,25 @@
-# .platform.app.yaml
 name: app
 type: 'php:8.4'
-
 disk: 256
 
 mounts:
-  'public/uploads':          # put the writable dir inside public/
+  'public/uploads':
     source: local
     source_path: uploads
+  'var':
+    source: local
+    source_path: var
+
+web:
+  locations:
+    "/":
+      root: "public"
+      passthru: "/index.php"
 
 relationships:
   mysql: 'mysql:mysql'
 
-# ***** add this block *****
-web:
-  locations:
-    "/":
-      root: "public"         # doc-root
-      passthru: "/index.php" # send everything to the front controller
-# ***************************
+variables:
+  env:
+    APP_ENV: 'prod'
+    APP_DEBUG: 0
