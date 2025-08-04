@@ -21,6 +21,10 @@ variables:
     APP_DEBUG: 0
 
 hooks:
+  build: |
+    set -e
+    php -d variables_order=EGPCS public/index.php vendor/platformsh/symfonyflex-bridge/bin/platformsh-prebuild.php
   deploy: |
     set -e
+    php -d variables_order=EGPCS public/index.php vendor/platformsh/symfonyflex-bridge/bin/platformsh-postdeploy.php
     php bin/console doctrine:migrations:migrate --no-interaction
