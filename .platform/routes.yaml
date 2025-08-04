@@ -1,15 +1,7 @@
 "https://www.{default}/":
-  type: redirect
-  to:   "https://www.{default}/login"
-
-"https://{default}/":
-  type: redirect
-  to:   "https://{default}/login"
-
-"https://www.{default}/login":
   type: upstream
   upstream: "app:http"
 
-"https://{default}/login":
+"https://{default}/":
   type: upstream
   upstream: "app:http"
