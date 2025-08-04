@@ -1,50 +1,51 @@
 security:
-    # https://symfony.com/doc/current/security.html#registering-the-user-hashing-passwords
     password_hashers:
         Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface: 'auto'
-    # https://symfony.com/doc/current/security.html#loading-the-user-the-user-provider
+
     providers:
         app_users:
             entity:
                 class: App\Entity\Client
                 property: email
+
     firewalls:
+        # static files, profiler, etc.
         dev:
-            pattern: ^/(_(profiler|wdt)|css|images|js)/
+            pattern: '^/(_(profiler|wdt)|css|images|js)/'
             security: false
+
+        # main firewall for the application
         main:
             lazy: true
             provider: app_users
+
+            # ---------- FORM-LOGIN ----------
             form_login:
-                login_path: app_login
-                check_path: app_login
+                login_path:  '/login'      # absolute path (NOT app_login)
+                check_path:  '/login'
                 enable_csrf: true
-                default_target_path: home
+                default_target_path: '/home'   # where to go *after* successful login
+
+            # ---------- LOGOUT ----------
             logout:
-                path: app_logout
-                target: home
+                path:   '/logout'
+                target: '/home'
 
-            # activate different ways to authenticate
-            # https://symfony.com/doc/current/security.html#the-firewall
+            # uncomment to enable “remember me”
+            # remember_me:
+            #     secret:   '%kernel.secret%'
+            #     lifetime: 2592000   # 30 days
 
-            # https://symfony.com/doc/current/security/impersonating_user.html
-            # switch_user: true
-
-    # Easy way to control access for large sections of your site
-    # Note: Only the *first* access control that matches will be used
+    # ---------- ACCESS CONTROL ----------
+    # the first rule that matches wins
     access_control:
-        - { path: ^/admin, roles: ROLE_ADMIN }
-        # - { path: ^/profile, roles: ROLE_USER }
+        # public pages
+        - { path: '^/login$',    roles: IS_AUTHENTICATED_ANONYMOUSLY }
+        - { path: '^/register$', roles: IS_AUTHENTICATED_ANONYMOUSLY }
 
-when@test:
-    security:
-        password_hashers:
-            # By default, password hashers are resource intensive and take time. This is
-            # important to generate secure password hashes. In tests however, secure hashes
-            # are not important, waste resources and increase test times. The following
-            # reduces the work factor to the lowest possible values.
-            Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface:
-                algorithm: auto
-                cost: 4 # Lowest possible value for bcrypt
-                time_cost: 3 # Lowest possible value for argon
-                memory_cost: 10 # Lowest possible value for argon
+        # admin area
+        - { path: '^/admin',     roles: ROLE_ADMIN }
+
+        # everything else requires a logged-in user
+        - { path: '^/',          roles: ROLE_USER }
+
