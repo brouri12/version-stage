@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Entity\Client;
+use App\Entity\Adresse;
 use App\Form\ClientType;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -35,6 +36,14 @@ class ProfileController extends AbstractController
         /** @var Client $user */
         $user = $this->getUser();
         
+        // Ensure user has at least one address
+        if ($user->getAdresses()->isEmpty()) {
+            $adresse = new Adresse();
+            $adresse->setClient($user);
+            $user->addAdress($adresse);
+            $entityManager->persist($adresse);
+        }
+        
         $form = $this->createForm(ClientType::class, $user);
         $form->handleRequest($request);
 
@@ -45,10 +54,15 @@ class ProfileController extends AbstractController
                 $user->setMotDePasse($passwordHasher->hashPassword($user, $plainPassword));
             }
 
-            // Mettre à jour l'adresse principale du client avec la première adresse de la collection
+            // Handle addresses
             $adresses = $user->getAdresses();
             if (count($adresses) > 0) {
                 $adresse = $adresses->first();
+                
+                // Ensure the address is properly linked to the user
+                $adresse->setClient($user);
+                
+                // Update the main address field with the first address
                 $user->setAdresse(sprintf(
                     '%s, %s, %s, %s',
                     $adresse->getRue(),
@@ -56,6 +70,11 @@ class ProfileController extends AbstractController
                     $adresse->getCodePostal(),
                     $adresse->getPays()
                 ));
+                
+                // Persist the address if it's new
+                if (!$adresse->getId()) {
+                    $entityManager->persist($adresse);
+                }
             }
 
             $entityManager->flush();

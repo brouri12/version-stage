@@ -1,0 +1,17 @@
+{% if wizard and steps is defined and steps %}
+  <div class="mb-4">
+    <ol class="flex flex-wrap items-center gap-2 text-sm">
+      {% for idx, step in steps %}
+        {% set i = loop.index0 %}
+        <li class="inline-flex items-center gap-2">
+          <a href="{{ step.route != 'admin_produits' ? path(step.route, {'id': produit.id, 'wizard': 1}) : path(step.route) }}"
+             class="px-2 py-1 rounded {{ currentStep is not null and i == currentStep ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800' }}">
+            {{ loop.index }}. {{ step.label }}
+          </a>
+          {% if not loop.last %}<span>›</span>{% endif %}
+        </li>
+      {% endfor %}
+    </ol>
+  </div>
+{% endif %}
+

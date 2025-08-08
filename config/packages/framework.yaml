@@ -17,6 +17,11 @@ framework:
     csrf_protection: true
     php_errors:
         log: true
+    
+    # Mailer configuration
+    mailer:
+        envelope:
+            sender: 'marwenazouzi44@gmail.com'
 
 when@test:
     framework:

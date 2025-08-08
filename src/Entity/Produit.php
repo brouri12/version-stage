@@ -8,6 +8,8 @@ use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Validator\Constraints as Assert;
+use App\Entity\ProduitColor;
+use App\Entity\ProduitImage;
 
 #[ORM\Entity(repositoryClass: ProduitRepository::class)]
 class Produit
@@ -35,6 +37,9 @@ class Produit
 
     #[ORM\Column(type: Types::STRING, length: 255, nullable: true)]
     private ?string $image_produit = null;
+
+    #[ORM\Column(type: Types::STRING, length: 255, nullable: true)]
+    private ?string $cloudinary_public_id = null;
 
     #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
     private ?\DateTime $date_ajout = null;
@@ -86,6 +91,19 @@ class Produit
     #[ORM\ManyToMany(targetEntity: Promotion::class, inversedBy: 'produits')]
     private Collection $promotions;
 
+    /**
+     * @var Collection<int, ProduitColor>
+     */
+    #[ORM\OneToMany(mappedBy: 'produit', targetEntity: ProduitColor::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
+    private Collection $colors;
+
+    /**
+     * @var Collection<int, ProduitImage>
+     */
+    #[ORM\OneToMany(mappedBy: 'produit', targetEntity: ProduitImage::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
+    #[ORM\OrderBy(['position' => 'ASC'])]
+    private Collection $images;
+
     public function __construct()
     {
         $this->produitSizes = new ArrayCollection();
@@ -93,6 +111,8 @@ class Produit
         $this->paniers = new ArrayCollection();
         $this->avis = new ArrayCollection();
         $this->promotions = new ArrayCollection();
+        $this->colors = new ArrayCollection();
+        $this->images = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -165,12 +185,18 @@ class Produit
 
     public function setImageProduit(?string $image_produit): self
     {
-        // Si un nom de fichier est donné, on stocke le chemin relatif dans 'apploads/'
-        if ($image_produit !== null && $image_produit !== '') {
-            $this->image_produit = 'apploads/' . ltrim($image_produit, '/\\');
-        } else {
-            $this->image_produit = null;
-        }
+        $this->image_produit = $image_produit;
+        return $this;
+    }
+
+    public function getCloudinaryPublicId(): ?string
+    {
+        return $this->cloudinary_public_id;
+    }
+
+    public function setCloudinaryPublicId(?string $cloudinary_public_id): self
+    {
+        $this->cloudinary_public_id = $cloudinary_public_id;
         return $this;
     }
 
@@ -357,6 +383,60 @@ class Produit
     {
         $this->promotions->removeElement($promotion);
 
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, ProduitColor>
+     */
+    public function getColors(): Collection
+    {
+        return $this->colors;
+    }
+
+    public function addColor(ProduitColor $color): self
+    {
+        if (!$this->colors->contains($color)) {
+            $this->colors->add($color);
+            $color->setProduit($this);
+        }
+        return $this;
+    }
+
+    public function removeColor(ProduitColor $color): self
+    {
+        if ($this->colors->removeElement($color)) {
+            if ($color->getProduit() === $this) {
+                $color->setProduit(null);
+            }
+        }
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, ProduitImage>
+     */
+    public function getImages(): Collection
+    {
+        return $this->images;
+    }
+
+    public function addImage(ProduitImage $image): self
+    {
+        if (!$this->images->contains($image)) {
+            $this->images->add($image);
+            $image->setProduit($this);
+        }
+        return $this;
+    }
+
+    public function removeImage(ProduitImage $image): self
+    {
+        if ($this->images->removeElement($image)) {
+            if ($image->getProduit() === $this) {
+                $image->setProduit(null);
+            }
+        }
         return $this;
     }
 }

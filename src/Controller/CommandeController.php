@@ -167,7 +167,7 @@ class CommandeController extends AbstractController
     }
 
     #[Route('/{id}/annuler', name: 'app_commande_annuler', methods: ['POST'])]
-    public function annuler(string $id, CommandeRepository $commandeRepository, EntityManagerInterface $entityManager): JsonResponse
+    public function annuler(string $id, CommandeRepository $commandeRepository, EntityManagerInterface $entityManager, PanierService $panierService): JsonResponse
     {
         /** @var \App\Entity\Client $user */
         $user = $this->getUser();
@@ -191,6 +191,10 @@ class CommandeController extends AbstractController
             return new JsonResponse(['success' => false, 'message' => 'Cette commande ne peut plus être annulée'], 400);
         }
 
+        // Restaurer les stocks avant d'annuler la commande
+        $lignesCommande = $commande->getLignesCommande()->toArray();
+        $panierService->restaurerStocks($lignesCommande);
+
         $commande->setStatutCommande('annulée');
         
         // Annuler le paiement si il existe
@@ -200,7 +204,7 @@ class CommandeController extends AbstractController
 
         $entityManager->flush();
 
-        return new JsonResponse(['success' => true, 'message' => 'Commande annulée avec succès']);
+        return new JsonResponse(['success' => true, 'message' => 'Commande annulée avec succès. Les stocks ont été restaurés.']);
     }
 
 

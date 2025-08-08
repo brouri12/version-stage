@@ -20,78 +20,87 @@
                     {{ message }}
                 </div>
             {% endfor %}
-            <form method="post" class="space-y-6">
+            <form method="post" class="space-y-6" id="profile-form">
                 {{ form_start(form) }}
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <!-- Personal Information -->
                     <div>
                         <h3 class="text-lg font-medium text-gray-900 mb-4">Informations Personnelles</h3>
-                        <div class="form-field">
-                            {{ form_label(form.nom, 'Nom', {'label_attr': {'class': 'block text-sm font-medium text-gray-700 required'}}) }}
-                            {{ form_widget(form.nom, {'attr': {'class': 'mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm'}}) }}
-                            {{ form_errors(form.nom, {'attr': {'class': 'error-message'}}) }}
-                        </div>
-                        <div class="form-field">
-                            {{ form_label(form.prenom, 'Prénom', {'label_attr': {'class': 'block text-sm font-medium text-gray-700 required'}}) }}
-                            {{ form_widget(form.prenom, {'attr': {'class': 'mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm'}}) }}
-                            {{ form_errors(form.prenom, {'attr': {'class': 'error-message'}}) }}
-                        </div>
-                        <div class="form-field">
-                            {{ form_label(form.email, 'Email', {'label_attr': {'class': 'block text-sm font-medium text-gray-700 required'}}) }}
-                            {{ form_widget(form.email, {'attr': {'class': 'mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm'}}) }}
-                            {{ form_errors(form.email, {'attr': {'class': 'error-message'}}) }}
-                        </div>
-                        <div class="form-field">
-                            {{ form_label(form.numero_telephone, 'Téléphone', {'label_attr': {'class': 'block text-sm font-medium text-gray-700 required'}}) }}
-                            {{ form_widget(form.numero_telephone, {'attr': {'class': 'mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm'}}) }}
-                            {{ form_errors(form.numero_telephone, {'attr': {'class': 'error-message'}}) }}
+                        <div class="space-y-4">
+                            <div class="form-field">
+                                {{ form_label(form.nom, 'Nom', {'label_attr': {'class': 'block text-sm font-medium text-gray-700 required'}}) }}
+                                {{ form_widget(form.nom, {'attr': {'class': 'mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm'}}) }}
+                                {{ form_errors(form.nom, {'attr': {'class': 'error-message'}}) }}
+                            </div>
+                            <div class="form-field">
+                                {{ form_label(form.prenom, 'Prénom', {'label_attr': {'class': 'block text-sm font-medium text-gray-700 required'}}) }}
+                                {{ form_widget(form.prenom, {'attr': {'class': 'mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm'}}) }}
+                                {{ form_errors(form.prenom, {'attr': {'class': 'error-message'}}) }}
+                            </div>
+                            <div class="form-field">
+                                {{ form_label(form.email, 'Email', {'label_attr': {'class': 'block text-sm font-medium text-gray-700 required'}}) }}
+                                {{ form_widget(form.email, {'attr': {'class': 'mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm'}}) }}
+                                {{ form_errors(form.email, {'attr': {'class': 'error-message'}}) }}
+                            </div>
+                            <div class="form-field">
+                                {{ form_label(form.numero_telephone, 'Téléphone', {'label_attr': {'class': 'block text-sm font-medium text-gray-700 required'}}) }}
+                                {{ form_widget(form.numero_telephone, {'attr': {'class': 'mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm'}}) }}
+                                {{ form_errors(form.numero_telephone, {'attr': {'class': 'error-message'}}) }}
+                            </div>
                         </div>
                     </div>
                     <!-- Security -->
                     <div>
                         <h3 class="text-lg font-medium text-gray-900 mb-4">Sécurité</h3>
-                        <div class="form-field">
-                            {{ form_label(form.mot_de_passe, 'Nouveau mot de passe (laisser vide pour ne pas changer)', {'label_attr': {'class': 'block text-sm font-medium text-gray-700'}}) }}
-                            {{ form_widget(form.mot_de_passe, {'attr': {'class': 'mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm', 'placeholder': 'Laissez vide pour ne pas changer'}}) }}
-                            {{ form_errors(form.mot_de_passe, {'attr': {'class': 'error-message'}}) }}
-                            <p class="mt-1 text-sm text-gray-500">Le mot de passe doit contenir au moins 8 caractères, une majuscule, une minuscule, un chiffre et un caractère spécial.</p>
+                        <div class="space-y-4">
+                            <div class="form-field">
+                                {{ form_label(form.mot_de_passe, 'Nouveau mot de passe (laisser vide pour ne pas changer)', {'label_attr': {'class': 'block text-sm font-medium text-gray-700'}}) }}
+                                {{ form_widget(form.mot_de_passe, {'attr': {'class': 'mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm', 'placeholder': 'Laissez vide pour ne pas changer'}}) }}
+                                {{ form_errors(form.mot_de_passe, {'attr': {'class': 'error-message'}}) }}
+                                <p class="mt-1 text-sm text-gray-500">Le mot de passe doit contenir au moins 8 caractères, une majuscule, une minuscule, un chiffre et un caractère spécial.</p>
+                            </div>
                         </div>
                     </div>
                 </div>
+                
                 <!-- Address Information -->
-                <div>
+                <div class="border-t border-gray-200 pt-6">
                     <h3 class="text-lg font-medium text-gray-900 mb-4">Adresse de Facturation</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {% for adresse in form.adresses %}
-                            <div class="form-field">
-                                {{ form_label(adresse.rue, 'Rue', {'label_attr': {'class': 'block text-sm font-medium text-gray-700 required'}}) }}
-                                {{ form_widget(adresse.rue, {'attr': {'class': 'mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm'}}) }}
-                                {{ form_errors(adresse.rue, {'attr': {'class': 'error-message'}}) }}
-                            </div>
-                            <div class="form-field">
-                                {{ form_label(adresse.ville, 'Ville', {'label_attr': {'class': 'block text-sm font-medium text-gray-700 required'}}) }}
-                                {{ form_widget(adresse.ville, {'attr': {'class': 'mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm'}}) }}
-                                {{ form_errors(adresse.ville, {'attr': {'class': 'error-message'}}) }}
-                            </div>
-                            <div class="form-field">
-                                {{ form_label(adresse.code_postal, 'Code Postal', {'label_attr': {'class': 'block text-sm font-medium text-gray-700 required'}}) }}
-                                {{ form_widget(adresse.code_postal, {'attr': {'class': 'mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm'}}) }}
-                                {{ form_errors(adresse.code_postal, {'attr': {'class': 'error-message'}}) }}
-                            </div>
-                            <div class="form-field">
-                                {{ form_label(adresse.pays, 'Pays', {'label_attr': {'class': 'block text-sm font-medium text-gray-700 required'}}) }}
-                                {{ form_widget(adresse.pays, {'attr': {'class': 'mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm'}}) }}
-                                {{ form_errors(adresse.pays, {'attr': {'class': 'error-message'}}) }}
-                            </div>
-                        {% endfor %}
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {% for adresse in form.adresses %}
+                                <div class="form-field">
+                                    {{ form_label(adresse.rue, 'Rue et numéro', {'label_attr': {'class': 'block text-sm font-medium text-gray-700 required'}}) }}
+                                    {{ form_widget(adresse.rue, {'attr': {'class': 'mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm', 'placeholder': '123 Rue de la Paix'}}) }}
+                                    {{ form_errors(adresse.rue, {'attr': {'class': 'error-message'}}) }}
+                                </div>
+                                <div class="form-field">
+                                    {{ form_label(adresse.ville, 'Ville', {'label_attr': {'class': 'block text-sm font-medium text-gray-700 required'}}) }}
+                                    {{ form_widget(adresse.ville, {'attr': {'class': 'mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm', 'placeholder': 'Tunis'}}) }}
+                                    {{ form_errors(adresse.ville, {'attr': {'class': 'error-message'}}) }}
+                                </div>
+                                <div class="form-field">
+                                    {{ form_label(adresse.code_postal, 'Code Postal', {'label_attr': {'class': 'block text-sm font-medium text-gray-700 required'}}) }}
+                                    {{ form_widget(adresse.code_postal, {'attr': {'class': 'mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm', 'placeholder': '1000', 'maxlength': '4', 'pattern': '[0-9]{4}'}}) }}
+                                    {{ form_errors(adresse.code_postal, {'attr': {'class': 'error-message'}}) }}
+                                </div>
+                                <div class="form-field">
+                                    {{ form_label(adresse.pays, 'Pays', {'label_attr': {'class': 'block text-sm font-medium text-gray-700 required'}}) }}
+                                    {{ form_widget(adresse.pays, {'attr': {'class': 'mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm', 'placeholder': 'Tunisie'}}) }}
+                                    {{ form_errors(adresse.pays, {'attr': {'class': 'error-message'}}) }}
+                                </div>
+                            {% endfor %}
+                        </div>
+                        <p class="mt-2 text-sm text-gray-500">Cette adresse sera utilisée pour la facturation et la livraison de vos commandes.</p>
                     </div>
                 </div>
-                <div class="flex justify-end space-x-3">
-                    <a href="{{ path('app_profile') }}" class="bg-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-400">
+                
+                <div class="flex justify-end space-x-3 pt-6 border-t border-gray-200">
+                    <a href="{{ path('app_profile') }}" class="bg-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-400 transition-colors duration-200">
                         Annuler
                     </a>
-                    <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
-                        Sauvegarder
+                    <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition-colors duration-200">
+                        Sauvegarder les modifications
                     </button>
                 </div>
                 {{ form_end(form) }}
@@ -99,4 +108,72 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('profile-form');
+    const submitButton = form.querySelector('button[type="submit"]');
+    
+    // Form validation
+    form.addEventListener('submit', function(e) {
+        let isValid = true;
+        
+        // Check required fields
+        const requiredFields = form.querySelectorAll('[required]');
+        requiredFields.forEach(field => {
+            if (!field.value.trim()) {
+                isValid = false;
+                field.classList.add('border-red-500');
+                field.classList.remove('border-gray-300');
+            } else {
+                field.classList.remove('border-red-500');
+                field.classList.add('border-gray-300');
+            }
+        });
+        
+        // Check postal code format
+        const postalCodeField = form.querySelector('input[name*="[code_postal]"]');
+        if (postalCodeField && postalCodeField.value) {
+            const postalCodePattern = /^[0-9]{4}$/;
+            if (!postalCodePattern.test(postalCodeField.value)) {
+                isValid = false;
+                postalCodeField.classList.add('border-red-500');
+                postalCodeField.classList.remove('border-gray-300');
+                alert('Le code postal doit contenir exactement 4 chiffres.');
+            }
+        }
+        
+        if (!isValid) {
+            e.preventDefault();
+            alert('Veuillez corriger les erreurs dans le formulaire.');
+            return false;
+        }
+        
+        // Disable submit button to prevent double submission
+        submitButton.disabled = true;
+        submitButton.textContent = 'Sauvegarde en cours...';
+    });
+    
+    // Real-time validation
+    const inputs = form.querySelectorAll('input[required]');
+    inputs.forEach(input => {
+        input.addEventListener('blur', function() {
+            if (!this.value.trim()) {
+                this.classList.add('border-red-500');
+                this.classList.remove('border-gray-300');
+            } else {
+                this.classList.remove('border-red-500');
+                this.classList.add('border-gray-300');
+            }
+        });
+        
+        input.addEventListener('input', function() {
+            if (this.value.trim()) {
+                this.classList.remove('border-red-500');
+                this.classList.add('border-gray-300');
+            }
+        });
+    });
+});
+</script>
 {% endblock %} 

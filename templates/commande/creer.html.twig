@@ -78,8 +78,13 @@
                     <div class="flex items-center space-x-4 p-4 border border-gray-200 rounded-lg">
                         <div class="flex-shrink-0">
                             <div class="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center">
-                                {% if item.produit.imageProduit %}
-                                    <img src="{{ asset(item.produit.imageProduit) }}" 
+                                {% if item.produit.cloudinaryPublicId %}
+                                    <img src="{{ cloudinary_thumbnail(item.produit.cloudinaryPublicId) }}" 
+                                         alt="{{ item.produit.nomProduit }}" 
+                                         class="w-full h-full object-cover rounded-lg">
+                                {% elseif item.produit.imageProduit %}
+                                    {% set imgPath = item.produit.imageProduit starts with 'apploads/' ? item.produit.imageProduit : 'apploads/' ~ item.produit.imageProduit %}
+                                    <img src="{{ asset(imgPath) }}" 
                                          alt="{{ item.produit.nomProduit }}" 
                                          class="w-full h-full object-cover rounded-lg">
                                 {% else %}

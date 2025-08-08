@@ -3,6 +3,7 @@
 {% block body %}
 <div class="container mx-auto py-8 px-4">
     <div class="bg-white p-8 rounded-lg shadow max-w-lg mx-auto">
+        {% include 'admin/partials/_wizard_steps.html.twig' with { wizard: wizard, steps: steps|default([]), currentStep: 0, produit: produit } %}
         <h1 class="text-2xl font-bold mb-6 text-center">Définir le stock total pour {{ produit.nomProduit }}</h1>
         <form id="stockForm" method="post" style="display:none;">
             <input type="hidden" name="stock_total" id="stock_total_hidden">

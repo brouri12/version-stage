@@ -1,0 +1,15 @@
+parameters:
+    cloudinary.cloud_name: '%env(CLOUDINARY_CLOUD_NAME)%'
+    cloudinary.api_key: '%env(CLOUDINARY_API_KEY)%'
+    cloudinary.api_secret: '%env(CLOUDINARY_API_SECRET)%'
+
+services:
+    Cloudinary\Cloudinary:
+        arguments:
+            - cloud_name: '%cloudinary.cloud_name%'
+              api_key: '%cloudinary.api_key%'
+              api_secret: '%cloudinary.api_secret%'
+    
+    App\Service\CloudinaryService:
+        arguments:
+            $cloudinary: '@Cloudinary\Cloudinary' 

@@ -30,6 +30,7 @@ class ProduitType extends AbstractType
             ->add('image_produit', FileType::class, [
                 'required' => false,
                 'mapped' => false,
+                'help' => 'Utilisé comme fallback si aucune image de galerie ne sera ajoutée',
             ])
             ->add('statut', ChoiceType::class, [
                 'choices' => [

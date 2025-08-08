@@ -6,11 +6,11 @@
         <div class="px-4 py-5 sm:p-6">
             <div class="flex items-center justify-between mb-6">
                 <h1 class="text-2xl font-bold text-gray-900">Mon Profil</h1>
-                <a href="{{ path('app_profile_edit') }}" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+                <a href="{{ path('app_profile_edit') }}" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors duration-200">
                     Modifier
                 </a>
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div>
                     <h3 class="text-lg font-medium text-gray-900 mb-4">Informations Personnelles</h3>
                     <dl class="space-y-3">
@@ -47,12 +47,47 @@
                                 </span>
                             </dd>
                         </div>
-                        <div>
-                            <dt class="text-sm font-medium text-gray-500">Adresse</dt>
-                            <dd class="text-sm text-gray-900">{{ user.adresse }}</dd>
-                        </div>
                     </dl>
                 </div>
+            </div>
+            
+            <!-- Address Information -->
+            <div class="mt-8 border-t border-gray-200 pt-6">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">Adresse de Facturation</h3>
+                {% if user.adresses|length > 0 %}
+                    {% for adresse in user.adresses %}
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <dl class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <dt class="text-sm font-medium text-gray-500">Rue et numéro</dt>
+                                    <dd class="text-sm text-gray-900">{{ adresse.rue }}</dd>
+                                </div>
+                                <div>
+                                    <dt class="text-sm font-medium text-gray-500">Ville</dt>
+                                    <dd class="text-sm text-gray-900">{{ adresse.ville }}</dd>
+                                </div>
+                                <div>
+                                    <dt class="text-sm font-medium text-gray-500">Code Postal</dt>
+                                    <dd class="text-sm text-gray-900">{{ adresse.codePostal }}</dd>
+                                </div>
+                                <div>
+                                    <dt class="text-sm font-medium text-gray-500">Pays</dt>
+                                    <dd class="text-sm text-gray-900">{{ adresse.pays }}</dd>
+                                </div>
+                            </dl>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="bg-yellow-50 p-4 rounded-lg">
+                        <p class="text-sm text-yellow-800">
+                            <svg class="inline w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                            </svg>
+                            Aucune adresse enregistrée. 
+                            <a href="{{ path('app_profile_edit') }}" class="text-blue-600 hover:text-blue-500 underline">Ajouter une adresse</a>
+                        </p>
+                    </div>
+                {% endif %}
             </div>
         </div>
     </div>

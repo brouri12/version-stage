@@ -1,0 +1,116 @@
+{% extends 'base.html.twig' %}
+{% block title %}Tailles/Couleurs - {{ produit.nomProduit }}{% endblock %}
+{% block body %}
+<div class="container mx-auto px-4 py-8">
+  <div class="flex justify-between mb-4">
+    <a href="{{ path('admin_produits') }}" class="px-3 py-2 bg-gray-200 rounded">Retour</a>
+    <div class="flex gap-2">
+      <a href="{{ path('admin_produits_colors', {'id': produit.id, 'wizard': wizard ? 1 : null}) }}" class="px-3 py-2 bg-purple-500 text-white rounded">Gérer couleurs</a>
+      <a href="{{ path('admin_produits_images', {'id': produit.id, 'wizard': wizard ? 1 : null}) }}" class="px-3 py-2 bg-indigo-500 text-white rounded">Gérer images</a>
+      {% if wizard and nextUrl %}
+        <a href="{{ nextUrl }}" class="px-3 py-2 bg-blue-600 text-white rounded">Terminer</a>
+      {% endif %}
+    </div>
+  </div>
+  {% include 'admin/partials/_wizard_steps.html.twig' with { wizard: wizard, steps: steps|default([]), currentStep: currentStep, produit: produit } %}
+  <h1 class="text-2xl font-bold mb-4">Gestion quantité par taille et couleur</h1>
+
+  {% if sizes|length == 0 %}
+    <div class="bg-yellow-100 border border-yellow-300 text-yellow-800 p-3 rounded mb-4">Aucune taille définie pour ce produit. Ajoutez des tailles d'abord.</div>
+  {% endif %}
+
+  <form method="get" class="mb-4">
+    <label class="mr-2 font-medium">Taille:</label>
+    <select name="size" class="border rounded px-3 py-2" onchange="this.form.submit()">
+      {% for s in sizes %}
+        <option value="{{ s }}" {% if s == selectedSize %}selected{% endif %}>{{ s }}</option>
+      {% endfor %}
+    </select>
+  </form>
+
+  {% if selectedSize %}
+    <form method="post" class="bg-white p-4 rounded shadow max-w-3xl" id="sizeColorForm">
+      <input type="hidden" name="size" value="{{ selectedSize }}">
+      {% set target = sizeTargets[selectedSize]|default(0) %}
+      <div class="mb-2 font-semibold">Quantités pour la taille {{ selectedSize }}</div>
+      <div class="mb-4 text-sm text-gray-700">Quantité taille (cible): <span class="font-medium">{{ target }}</span> | Somme couleurs: <span id="sumDisplay" class="font-medium">0</span> | Restant: <span id="remainDisplay" class="font-medium">{{ target }}</span></div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+        {% for c in produit.colors %}
+          {% set colorHex = c.hexCode ? c.hexCode|trim : '' %}
+          {% if colorHex and not (colorHex starts with '#') %}{% set colorHex = '#' ~ colorHex %}{% endif %}
+          <div class="border rounded p-3">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="inline-block w-5 h-5 rounded-full border" style="background-color: {{ colorHex ? colorHex : '#e5e7eb' }}"></span>
+              <span class="font-medium">{{ c.name }}</span>
+            </div>
+            <input type="number" min="0" class="w-full border rounded px-3 py-2 qty-input" name="qty_{{ c.id }}" value="{{ existing[c.id]|default(0) }}">
+          </div>
+        {% else %}
+          <div class="col-span-full text-gray-500">Aucune couleur.</div>
+        {% endfor %}
+      </div>
+      <div class="mt-4">
+        <button class="px-4 py-2 bg-blue-600 text-white rounded" id="saveBtn">Enregistrer</button>
+      </div>
+    </form>
+  {% endif %}
+
+  {% if sizeSummaries is defined and sizeSummaries %}
+    <div class="mt-8">
+      <div class="text-lg font-semibold mb-2">Résumé par taille</div>
+      <div class="space-y-4">
+        {% for s, summary in sizeSummaries %}
+          <div class="border rounded p-3">
+            <div class="flex items-center gap-2 mb-2">
+              <div class="font-medium">{{ s }}</div>
+              <div class="text-sm text-gray-600">Somme: {{ summary.sum }} / Cible: {{ summary.target }}</div>
+              {% if summary.sum != summary.target %}
+                <span class="text-xs px-2 py-1 bg-red-100 text-red-700 rounded">à équilibrer</span>
+              {% else %}
+                <span class="text-xs px-2 py-1 bg-green-100 text-green-700 rounded">ok</span>
+              {% endif %}
+            </div>
+            <div class="flex flex-wrap gap-3">
+              {% for item in summary.items %}
+                {% set hx = item.hex ? item.hex|trim : '' %}
+                {% if hx and not (hx starts with '#') %}{% set hx = '#' ~ hx %}{% endif %}
+                <div class="flex items-center gap-2 border rounded px-2 py-1">
+                  <span class="inline-block w-4 h-4 rounded-full border" style="background-color: {{ hx ? hx : '#e5e7eb' }}"></span>
+                  <span class="text-sm">{{ item.colorName }}: {{ item.qty }}</span>
+                </div>
+              {% else %}
+                <div class="text-gray-500 text-sm">Aucune répartition.</div>
+              {% endfor %}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block javascripts %}
+  {{ parent() }}
+  <script>
+    (function(){
+      var form = document.getElementById('sizeColorForm');
+      if (!form) return;
+      var inputs = form.querySelectorAll('.qty-input');
+      var sumEl = document.getElementById('sumDisplay');
+      var remainEl = document.getElementById('remainDisplay');
+      var saveBtn = document.getElementById('saveBtn');
+      var target = {{ sizeTargets[selectedSize]|default(0) }};
+      function recalc(){
+        var s = 0;
+        inputs.forEach(function(i){ var v = parseInt(i.value, 10); if (!isNaN(v) && v > 0) s += v; });
+        if (sumEl) sumEl.textContent = s;
+        if (remainEl) remainEl.textContent = (target - s);
+        if (saveBtn) saveBtn.disabled = (s !== target);
+      }
+      inputs.forEach(function(i){ i.addEventListener('input', recalc); });
+      recalc();
+    })();
+  </script>
+{% endblock %}
+

@@ -31,9 +31,11 @@
                 <tr class="border-t">
                     <td class="px-4 py-2">{{ ligne.produit.nomProduit }}</td>
                     <td class="px-4 py-2">
-                        {% if ligne.produit.imageProduit %}
+                        {% if ligne.produit.cloudinaryPublicId %}
+                            <img src="{{ cloudinary_thumbnail(ligne.produit.cloudinaryPublicId) }}" alt="{{ ligne.produit.nomProduit }}" style="max-width: 80px; max-height: 80px; object-fit: cover;">
+                        {% elseif ligne.produit.imageProduit %}
                             {% set imgPath = ligne.produit.imageProduit starts with 'apploads/' ? ligne.produit.imageProduit : 'apploads/' ~ ligne.produit.imageProduit %}
-                            <img src="{{ asset(imgPath) }}" alt="{{ ligne.produit.nomProduit }}" style="max-width: 80px; max-height: 80px;">
+                            <img src="{{ asset(imgPath) }}" alt="{{ ligne.produit.nomProduit }}" style="max-width: 80px; max-height: 80px; object-fit: cover;">
                         {% else %}
                             <span>Aucune image</span>
                         {% endif %}

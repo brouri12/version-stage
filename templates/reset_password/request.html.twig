@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mot de passe oublié - MooDeek</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .form-field {
+            margin-bottom: 1rem;
+        }
+        .required::after {
+            content: " *";
+            color: #dc2626;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans">
+    <div class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-md w-full space-y-8">
+            <div>
+                <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">
+                    Mot de passe oublié
+                </h2>
+                <p class="mt-2 text-center text-sm text-gray-600">
+                    Entrez votre adresse email et nous vous enverrons un lien pour réinitialiser votre mot de passe.
+                </p>
+            </div>
+            
+            <div class="bg-white py-8 px-6 shadow rounded-lg">
+                <form class="space-y-6" method="post">
+                    {{ form_widget(requestForm) }}
+                    
+                    <div>
+                        <button 
+                            type="submit" 
+                            class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-200"
+                        >
+                            Envoyer le lien de réinitialisation
+                        </button>
+                    </div>
+                </form>
+
+                <div class="mt-6 text-center">
+                    <a href="{{ path('app_login') }}" class="font-medium text-blue-600 hover:text-blue-500">
+                        Retour à la connexion
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html> 

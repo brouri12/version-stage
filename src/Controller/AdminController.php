@@ -20,9 +20,14 @@ use Symfony\Component\HttpFoundation\RedirectResponse;
 use App\Form\CategorieType;
 use App\Form\ClientType;
 use App\Entity\ProduitSize;
+use App\Service\CloudinaryService;
+use App\Entity\ProduitColor;
+use App\Entity\ProduitImage;
+use App\Entity\ProduitSizeColor;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use App\Service\PanierService;
 
 #[IsGranted('ROLE_ADMIN')]
 #[Route('/admin')]
@@ -137,13 +142,29 @@ class AdminController extends AbstractController
     public function produits(Request $request, EntityManagerInterface $em): Response
     {
         $produits = $em->getRepository(Produit::class)->findAll();
+        // Construire une carte produit -> taille -> liste {color, hex, qty}
+        $sizeColorMap = [];
+        $pscRepo = $em->getRepository(ProduitSizeColor::class);
+        foreach ($produits as $p) {
+            $rows = $pscRepo->findBy(['produit' => $p]);
+            foreach ($rows as $r) {
+                $size = $r->getSize();
+                $color = $r->getColor();
+                $sizeColorMap[$p->getId()][$size][] = [
+                    'colorName' => $color ? $color->getName() : null,
+                    'hex' => $color ? $color->getHexCode() : null,
+                    'qty' => (int) $r->getQuantite(),
+                ];
+            }
+        }
         return $this->render('admin/produits.html.twig', [
-            'produits' => $produits
+            'produits' => $produits,
+            'sizeColorMap' => $sizeColorMap,
         ]);
     }
 
     #[Route('/produits/add', name: 'admin_produits_add')]
-    public function addProduit(Request $request, EntityManagerInterface $em): Response
+    public function addProduit(Request $request, EntityManagerInterface $em, CloudinaryService $cloudinaryService): Response
     {
         $produit = new Produit();
         $form = $this->createForm(ProduitType::class, $produit);
@@ -152,19 +173,16 @@ class AdminController extends AbstractController
             $produit->setDateAjout(new \DateTime());
             $imageFile = $form->get('image_produit')->getData();
             if ($imageFile) {
-                $originalFilename = pathinfo($imageFile->getClientOriginalName(), PATHINFO_FILENAME);
-                $safeFilename = preg_replace('/[^A-Za-z0-9_]/', '', strtolower($originalFilename));
-                $newFilename = $safeFilename.'-'.uniqid().'.'.$imageFile->guessExtension();
-                try {
-                    $imageFile->move(
-                        $this->getParameter('kernel.project_dir').'/public/apploads',
-                        $newFilename
-                    );
-                } catch (\Exception $e) {
-                    $this->addFlash('error', "Erreur lors de l'upload de l'image : ".$e->getMessage());
+                // Upload to Cloudinary
+                $uploadResult = $cloudinaryService->uploadImage($imageFile, 'products');
+                
+                if ($uploadResult['success']) {
+                    $produit->setImageProduit($uploadResult['url']);
+                    $produit->setCloudinaryPublicId($uploadResult['public_id']);
+                } else {
+                    $this->addFlash('error', "Erreur lors de l'upload de l'image : " . $uploadResult['error']);
                     return $this->redirectToRoute('admin_produits_add');
                 }
-                $produit->setImageProduit($newFilename);
             }
             $em->persist($produit);
             $em->flush();
@@ -172,11 +190,11 @@ class AdminController extends AbstractController
             $categorie = str_replace(['é', 'è', 'ê', 'ë'], 'e', $categorie);
             $categorie = trim($categorie);
             if (preg_match('/^vetement(s)?$/', $categorie)) {
-                return $this->redirectToRoute('admin_produits_add_size_multi', ['id' => $produit->getId()]);
+                return $this->redirectToRoute('admin_produits_add_size_multi', ['id' => $produit->getId(), 'wizard' => 1]);
             } elseif (preg_match('/^chaussure(s)?$/', $categorie)) {
-                return $this->redirectToRoute('admin_produits_add_size_shoes', ['id' => $produit->getId()]);
+                return $this->redirectToRoute('admin_produits_add_size_shoes', ['id' => $produit->getId(), 'wizard' => 1]);
             } else {
-                return $this->redirectToRoute('admin_produits_set_stock', ['id' => $produit->getId()]);
+                return $this->redirectToRoute('admin_produits_set_stock', ['id' => $produit->getId(), 'wizard' => 1]);
             }
         }
         return $this->render('admin/produit_form.html.twig', [
@@ -186,41 +204,437 @@ class AdminController extends AbstractController
     }
 
     #[Route('/produits/edit/{id}', name: 'admin_produits_edit')]
-    public function editProduit(Request $request, EntityManagerInterface $em, Produit $produit): Response
+    public function editProduit(Request $request, EntityManagerInterface $em, Produit $produit, CloudinaryService $cloudinaryService): Response
     {
         $form = $this->createForm(ProduitType::class, $produit);
         $form->handleRequest($request);
         if ($form->isSubmitted() && $form->isValid()) {
             $imageFile = $form->get('image_produit')->getData();
             if ($imageFile) {
-                $originalFilename = pathinfo($imageFile->getClientOriginalName(), PATHINFO_FILENAME);
-                $safeFilename = preg_replace('/[^A-Za-z0-9_]/', '', strtolower($originalFilename));
-                $newFilename = $safeFilename.'-'.uniqid().'.'.$imageFile->guessExtension();
-                try {
-                    $imageFile->move(
-                        $this->getParameter('kernel.project_dir').'/public/apploads',
-                        $newFilename
-                    );
-                } catch (\Exception $e) {
-                    $this->addFlash('error', "Erreur lors de l'upload de l'image : ".$e->getMessage());
+                // Delete old image from Cloudinary if exists
+                if ($produit->getCloudinaryPublicId()) {
+                    $cloudinaryService->deleteImage($produit->getCloudinaryPublicId());
+                }
+                
+                // Upload new image to Cloudinary
+                $uploadResult = $cloudinaryService->uploadImage($imageFile, 'products');
+                
+                if ($uploadResult['success']) {
+                    $produit->setImageProduit($uploadResult['url']);
+                    $produit->setCloudinaryPublicId($uploadResult['public_id']);
+                } else {
+                    $this->addFlash('error', "Erreur lors de l'upload de l'image : " . $uploadResult['error']);
                     return $this->redirectToRoute('admin_produits_edit', ['id' => $produit->getId()]);
                 }
-                $produit->setImageProduit($newFilename);
             }
             $em->flush();
             $this->addFlash('success', 'Produit modifié avec succès');
             return $this->redirectToRoute('admin_produits');
         }
+        // Prefill existing size-color quantities map: [size => [colorId => qty]]
+        $sizeColorExisting = [];
+        $pscRepo = $em->getRepository(ProduitSizeColor::class);
+        foreach ($produit->getProduitSizes() as $ps) {
+            $size = $ps->getSize();
+            $rows = $pscRepo->findBy(['produit' => $produit, 'size' => $size]);
+            foreach ($rows as $r) {
+                $sizeColorExisting[$size][$r->getColor()->getId()] = (int)$r->getQuantite();
+            }
+        }
         return $this->render('admin/produit_form.html.twig', [
             'form' => $form->createView(),
             'isEdit' => true,
-            'produit' => $produit
+            'produit' => $produit,
+            'sizeColorExisting' => $sizeColorExisting,
         ]);
     }
 
-    #[Route('/produits/delete/{id}', name: 'admin_produits_delete')]
-    public function deleteProduit(EntityManagerInterface $em, Produit $produit): RedirectResponse
+    #[Route('/produits/{id}/colors', name: 'admin_produits_colors', methods: ['GET', 'POST'])]
+    public function manageColors(Request $request, EntityManagerInterface $em, Produit $produit): Response
     {
+        $wizard = $request->query->getBoolean('wizard');
+        $returnTo = $request->query->get('return');
+        // Build wizard steps based on category
+        $cat = $produit->getCategorie() ? strtolower($produit->getCategorie()->getNomCategorie()) : '';
+        $cat = str_replace(['é','è','ê','ë'], 'e', $cat);
+        $isVetement = (bool) preg_match('/^vetement(s)?$/', $cat);
+        $isChaussure = (bool) preg_match('/^chaussure(s)?$/', $cat);
+        $steps = [];
+        $currentStep = 1; // Colors step index
+        if ($wizard) {
+            if ($isVetement) {
+                $steps = [
+                    ['label' => 'Tailles', 'route' => 'admin_produits_add_size_multi'],
+                    ['label' => 'Couleurs', 'route' => 'admin_produits_colors'],
+                    ['label' => 'Images', 'route' => 'admin_produits_images'],
+                    ['label' => 'Taille/Couleur', 'route' => 'admin_produits_size_color'],
+                    ['label' => 'Terminer', 'route' => 'admin_produits'],
+                ];
+            } elseif ($isChaussure) {
+                $steps = [
+                    ['label' => 'Pointures', 'route' => 'admin_produits_add_size_shoes'],
+                    ['label' => 'Couleurs', 'route' => 'admin_produits_colors'],
+                    ['label' => 'Images', 'route' => 'admin_produits_images'],
+                    ['label' => 'Terminer', 'route' => 'admin_produits'],
+                ];
+            } else {
+                $steps = [
+                    ['label' => 'Stock', 'route' => 'admin_produits_set_stock'],
+                    ['label' => 'Couleurs', 'route' => 'admin_produits_colors'],
+                    ['label' => 'Images', 'route' => 'admin_produits_images'],
+                    ['label' => 'Terminer', 'route' => 'admin_produits'],
+                ];
+            }
+        }
+        $error = null;
+        if ($request->isMethod('POST')) {
+            $name = trim((string)$request->request->get('name'));
+            $hex = $request->request->get('hex');
+            if ($name !== '') {
+                $color = new ProduitColor();
+                $color->setProduit($produit);
+                $color->setName($name);
+                $color->setHexCode($hex ?: null);
+                $em->persist($color);
+                $em->flush();
+                $this->addFlash('success', 'Couleur ajoutée');
+                if ($returnTo === 'edit') {
+                    return $this->redirectToRoute('admin_produits_edit', ['id' => $produit->getId()]);
+                }
+                return $this->redirectToRoute('admin_produits_colors', ['id' => $produit->getId(), 'wizard' => $wizard ? 1 : null]);
+            } else {
+                $error = 'Le nom de la couleur est requis';
+            }
+        }
+        return $this->render('admin/produit_colors.html.twig', [
+            'produit' => $produit,
+            'error' => $error,
+            'wizard' => $wizard,
+            'steps' => $steps,
+            'currentStep' => $wizard ? $currentStep : null,
+            'prevUrl' => $wizard ? ($isVetement
+                ? $this->generateUrl('admin_produits_add_size_multi', ['id' => $produit->getId(), 'wizard' => 1])
+                : ($isChaussure
+                    ? $this->generateUrl('admin_produits_add_size_shoes', ['id' => $produit->getId(), 'wizard' => 1])
+                    : $this->generateUrl('admin_produits_set_stock', ['id' => $produit->getId(), 'wizard' => 1])
+                )) : null,
+            'nextUrl' => $wizard ? $this->generateUrl('admin_produits_images', ['id' => $produit->getId(), 'wizard' => 1]) : null,
+        ]);
+    }
+
+    #[Route('/produits/{produitId}/colors/{colorId}/delete', name: 'admin_produits_colors_delete', methods: ['POST'])]
+    public function deleteColor(Request $request, int $produitId, int $colorId, EntityManagerInterface $em): Response
+    {
+        $returnTo = $request->query->get('return');
+        $produit = $em->getRepository(Produit::class)->find($produitId);
+        $color = $em->getRepository(ProduitColor::class)->find($colorId);
+        if (!$produit || !$color || $color->getProduit()->getId() !== $produit->getId()) {
+            $this->addFlash('error', 'Couleur introuvable');
+            return $this->redirectToRoute('admin_produits');
+        }
+        if ($color->getImages()->count() > 0) {
+            $this->addFlash('error', 'Supprimez d\'abord les images associées à cette couleur');
+            if ($returnTo === 'edit') {
+                return $this->redirectToRoute('admin_produits_edit', ['id' => $produitId]);
+            }
+            return $this->redirectToRoute('admin_produits_colors', ['id' => $produitId]);
+        }
+        $em->remove($color);
+        $em->flush();
+        $this->addFlash('success', 'Couleur supprimée');
+        if ($returnTo === 'edit') {
+            return $this->redirectToRoute('admin_produits_edit', ['id' => $produitId]);
+        }
+        return $this->redirectToRoute('admin_produits_colors', ['id' => $produitId]);
+    }
+
+    #[Route('/produits/{id}/images', name: 'admin_produits_images', methods: ['GET', 'POST'])]
+    public function manageImages(Request $request, EntityManagerInterface $em, Produit $produit, CloudinaryService $cloudinaryService): Response
+    {
+        $wizard = $request->query->getBoolean('wizard');
+        $cat = $produit->getCategorie() ? strtolower($produit->getCategorie()->getNomCategorie()) : '';
+        $cat = str_replace(['é','è','ê','ë'], 'e', $cat);
+        $isVetement = (bool) preg_match('/^vetement(s)?$/', $cat);
+        $isChaussure = (bool) preg_match('/^chaussure(s)?$/', $cat);
+        $steps = [];
+        $currentStep = $wizard ? 2 : null; // Images step index
+        if ($wizard) {
+            if ($isVetement) {
+                $steps = [
+                    ['label' => 'Tailles', 'route' => 'admin_produits_add_size_multi'],
+                    ['label' => 'Couleurs', 'route' => 'admin_produits_colors'],
+                    ['label' => 'Images', 'route' => 'admin_produits_images'],
+                    ['label' => 'Taille/Couleur', 'route' => 'admin_produits_size_color'],
+                    ['label' => 'Terminer', 'route' => 'admin_produits'],
+                ];
+            } elseif ($isChaussure) {
+                $steps = [
+                    ['label' => 'Pointures', 'route' => 'admin_produits_add_size_shoes'],
+                    ['label' => 'Couleurs', 'route' => 'admin_produits_colors'],
+                    ['label' => 'Images', 'route' => 'admin_produits_images'],
+                    ['label' => 'Terminer', 'route' => 'admin_produits'],
+                ];
+            } else {
+                $steps = [
+                    ['label' => 'Stock', 'route' => 'admin_produits_set_stock'],
+                    ['label' => 'Couleurs', 'route' => 'admin_produits_colors'],
+                    ['label' => 'Images', 'route' => 'admin_produits_images'],
+                    ['label' => 'Terminer', 'route' => 'admin_produits'],
+                ];
+            }
+        }
+        $error = null;
+        if ($request->isMethod('POST')) {
+            /** @var \Symfony\Component\HttpFoundation\File\UploadedFile[]|null $files */
+            $files = $request->files->get('images');
+            $colorId = $request->request->get('color_id');
+            $setMainForFirst = $request->request->get('set_main_first') === 'on';
+            $color = $colorId ? $em->getRepository(ProduitColor::class)->find($colorId) : null;
+            if ($colorId && (!$color || $color->getProduit()->getId() !== $produit->getId())) {
+                $this->addFlash('error', 'Couleur invalide');
+                return $this->redirectToRoute('admin_produits_images', ['id' => $produit->getId()]);
+            }
+            if (is_array($files) && count($files) > 0) {
+                $positionBase = $produit->getImages()->count();
+                $index = 0;
+                foreach ($files as $file) {
+                    if (!$file) { continue; }
+                    $uploadResult = $cloudinaryService->uploadImage($file, 'products');
+                    if ($uploadResult['success']) {
+                        $img = new ProduitImage();
+                        $img->setProduit($produit);
+                        if ($color) { $img->setColor($color); }
+                        $img->setUrl($uploadResult['url']);
+                        $img->setCloudinaryPublicId($uploadResult['public_id']);
+                        $img->setPosition($positionBase + $index);
+                        $img->setIsMain($setMainForFirst && $index === 0);
+                        if ($img->isMain()) {
+                            // Unset main from others for this product
+                            foreach ($produit->getImages() as $existing) {
+                                if ($existing->isMain()) { $existing->setIsMain(false); }
+                            }
+                        }
+                        $em->persist($img);
+                        $index++;
+                    } else {
+                        $error = $uploadResult['error'] ?? 'Erreur upload';
+                        break;
+                    }
+                }
+                $em->flush();
+                if (!$error) { $this->addFlash('success', 'Images ajoutées'); }
+                return $this->redirectToRoute('admin_produits_images', ['id' => $produit->getId(), 'wizard' => $wizard ? 1 : null]);
+            } else {
+                $error = 'Sélectionnez au moins une image';
+            }
+        }
+        return $this->render('admin/produit_images.html.twig', [
+            'produit' => $produit,
+            'error' => $error,
+            'wizard' => $wizard,
+            'steps' => $steps,
+            'currentStep' => $currentStep,
+            'prevUrl' => $wizard ? $this->generateUrl('admin_produits_colors', ['id' => $produit->getId(), 'wizard' => 1]) : null,
+            'nextUrl' => $wizard ? ($isVetement
+                ? $this->generateUrl('admin_produits_size_color', ['id' => $produit->getId(), 'wizard' => 1])
+                : $this->generateUrl('admin_produits')) : null,
+        ]);
+    }
+
+    #[Route('/produits/{id}/size-color', name: 'admin_produits_size_color', methods: ['GET','POST'])]
+    public function manageSizeColor(Request $request, EntityManagerInterface $em, Produit $produit): Response
+    {
+        // Restreindre aux vêtements uniquement
+        $cat = $produit->getCategorie() ? strtolower($produit->getCategorie()->getNomCategorie()) : '';
+        $cat = str_replace(['é','è','ê','ë'], 'e', $cat);
+        $isVetement = (bool) preg_match('/^vetement(s)?$/', $cat);
+        if (!$isVetement) {
+            $this->addFlash('error', 'Cette gestion taille/couleur est réservée aux produits de type Vêtements.');
+            return $this->redirectToRoute('admin_produits');
+        }
+        $wizard = $request->query->getBoolean('wizard');
+        $steps = $wizard ? [
+            ['label' => 'Tailles', 'route' => 'admin_produits_add_size_multi'],
+            ['label' => 'Couleurs', 'route' => 'admin_produits_colors'],
+            ['label' => 'Images', 'route' => 'admin_produits_images'],
+            ['label' => 'Taille/Couleur', 'route' => 'admin_produits_size_color'],
+            ['label' => 'Terminer', 'route' => 'admin_produits'],
+        ] : [];
+
+        $sizes = array_map(fn($ps) => $ps->getSize(), $produit->getProduitSizes()->toArray());
+        $sizes = array_values(array_unique($sizes));
+        // Cibles par taille (quantité définie pour chaque taille)
+        $sizeTargets = [];
+        foreach ($produit->getProduitSizes() as $ps) {
+            $sizeTargets[$ps->getSize()] = (int) $ps->getQuantite();
+        }
+        $selectedSize = $request->query->get('size');
+        if (!$selectedSize && count($sizes) > 0) { $selectedSize = $sizes[0]; }
+
+        if ($request->isMethod('POST')) {
+            $selectedSize = $request->request->get('size');
+            if (!$selectedSize) {
+                $this->addFlash('error', 'Sélectionnez une taille.');
+                return $this->redirectToRoute('admin_produits_size_color', ['id' => $produit->getId()]);
+            }
+            $repo = $em->getRepository(ProduitSizeColor::class);
+            $sum = 0;
+            $posted = [];
+            foreach ($produit->getColors() as $color) {
+                $field = 'qty_' . $color->getId();
+                $q = $request->request->get($field);
+                $qty = is_numeric($q) ? max(0, (int)$q) : 0;
+                $posted[$color->getId()] = $qty;
+                $sum += $qty;
+            }
+            $target = $sizeTargets[$selectedSize] ?? null;
+            if ($target === null) {
+                $this->addFlash('error', "Taille introuvable pour ce produit.");
+                return $this->redirectToRoute('admin_produits_size_color', ['id' => $produit->getId()]);
+            }
+            if ($sum !== (int)$target) {
+                $this->addFlash('error', sprintf('La somme des quantités par couleur (%d) doit être égale à la quantité de la taille %s (%d).', $sum, $selectedSize, $target));
+                // Re-afficher avec les valeurs postées
+                // Préparer les résumés par taille
+                $sizeSummaries = [];
+                foreach ($sizes as $s) {
+                    $rows = $em->getRepository(ProduitSizeColor::class)->findBy(['produit' => $produit, 'size' => $s]);
+                    $items = [];
+                    $sSum = 0;
+                    foreach ($rows as $r) {
+                        $items[] = [
+                            'colorId' => $r->getColor()->getId(),
+                            'colorName' => $r->getColor()->getName(),
+                            'hex' => $r->getColor()->getHexCode(),
+                            'qty' => $r->getQuantite(),
+                        ];
+                        $sSum += (int)$r->getQuantite();
+                    }
+                    $sizeSummaries[$s] = [
+                        'target' => $sizeTargets[$s] ?? 0,
+                        'sum' => $sSum,
+                        'items' => $items,
+                    ];
+                }
+                return $this->render('admin/produit_size_color.html.twig', [
+                    'produit' => $produit,
+                    'sizes' => $sizes,
+                    'selectedSize' => $selectedSize,
+                    'existing' => $posted,
+                    'sizeTargets' => $sizeTargets,
+                    'sizeSummaries' => $sizeSummaries,
+                ]);
+            }
+            // Enregistrement car la somme est valide
+            foreach ($produit->getColors() as $color) {
+                $qty = $posted[$color->getId()] ?? 0;
+                $entry = $repo->findOneBy(['produit' => $produit, 'size' => $selectedSize, 'color' => $color]);
+                if (!$entry) {
+                    if ($qty === 0) { continue; }
+                    $entry = new ProduitSizeColor();
+                    $entry->setProduit($produit)->setSize($selectedSize)->setColor($color);
+                    $em->persist($entry);
+                }
+                $entry->setQuantite($qty);
+            }
+            $em->flush();
+            $this->addFlash('success', 'Quantités taille/couleur enregistrées.');
+            return $this->redirectToRoute('admin_produits_size_color', ['id' => $produit->getId(), 'size' => $selectedSize, 'wizard' => $wizard ? 1 : null]);
+        }
+
+        // Préparer les valeurs existantes
+        $repo = $em->getRepository(ProduitSizeColor::class);
+        $existing = [];
+        if ($selectedSize) {
+            $rows = $repo->findBy(['produit' => $produit, 'size' => $selectedSize]);
+            foreach ($rows as $r) { $existing[$r->getColor()->getId()] = $r->getQuantite(); }
+        }
+
+        // Résumés pour toutes les tailles
+        $sizeSummaries = [];
+        foreach ($sizes as $s) {
+            $rows = $repo->findBy(['produit' => $produit, 'size' => $s]);
+            $items = [];
+            $sSum = 0;
+            foreach ($rows as $r) {
+                $items[] = [
+                    'colorId' => $r->getColor()->getId(),
+                    'colorName' => $r->getColor()->getName(),
+                    'hex' => $r->getColor()->getHexCode(),
+                    'qty' => $r->getQuantite(),
+                ];
+                $sSum += (int)$r->getQuantite();
+            }
+            $sizeSummaries[$s] = [
+                'target' => $sizeTargets[$s] ?? 0,
+                'sum' => $sSum,
+                'items' => $items,
+            ];
+        }
+
+        return $this->render('admin/produit_size_color.html.twig', [
+            'produit' => $produit,
+            'sizes' => $sizes,
+            'selectedSize' => $selectedSize,
+            'existing' => $existing,
+            'sizeTargets' => $sizeTargets,
+            'sizeSummaries' => $sizeSummaries,
+            'wizard' => $wizard,
+            'steps' => $steps,
+            'currentStep' => $wizard ? 3 : null,
+            'prevUrl' => $wizard ? $this->generateUrl('admin_produits_images', ['id' => $produit->getId(), 'wizard' => 1]) : null,
+            'nextUrl' => $wizard ? $this->generateUrl('admin_produits') : null,
+        ]);
+    }
+
+    #[Route('/produits/{produitId}/images/{imageId}/delete', name: 'admin_produits_images_delete', methods: ['POST'])]
+    public function deleteImage(int $produitId, int $imageId, EntityManagerInterface $em, CloudinaryService $cloudinaryService): Response
+    {
+        $produit = $em->getRepository(Produit::class)->find($produitId);
+        $image = $em->getRepository(ProduitImage::class)->find($imageId);
+        if (!$produit || !$image || $image->getProduit()->getId() !== $produit->getId()) {
+            $this->addFlash('error', 'Image introuvable');
+            return $this->redirectToRoute('admin_produits');
+        }
+        if ($image->getCloudinaryPublicId()) {
+            $cloudinaryService->deleteImage($image->getCloudinaryPublicId());
+        }
+        $em->remove($image);
+        $em->flush();
+        $this->addFlash('success', 'Image supprimée');
+        return $this->redirectToRoute('admin_produits_images', ['id' => $produitId]);
+    }
+
+    #[Route('/produits/{produitId}/images/{imageId}/set-main', name: 'admin_produits_images_set_main', methods: ['POST'])]
+    public function setMainImage(int $produitId, int $imageId, EntityManagerInterface $em): Response
+    {
+        $produit = $em->getRepository(Produit::class)->find($produitId);
+        $image = $em->getRepository(ProduitImage::class)->find($imageId);
+        if (!$produit || !$image || $image->getProduit()->getId() !== $produit->getId()) {
+            $this->addFlash('error', 'Image introuvable');
+            return $this->redirectToRoute('admin_produits');
+        }
+        foreach ($produit->getImages() as $img) { $img->setIsMain(false); }
+        $image->setIsMain(true);
+        $em->flush();
+        $this->addFlash('success', 'Image principale définie');
+        return $this->redirectToRoute('admin_produits_images', ['id' => $produitId]);
+    }
+
+    #[Route('/produits/delete/{id}', name: 'admin_produits_delete')]
+    public function deleteProduit(EntityManagerInterface $em, Produit $produit, CloudinaryService $cloudinaryService): RedirectResponse
+    {
+        // Delete gallery images from Cloudinary
+        foreach ($produit->getImages() as $image) {
+            if ($image->getCloudinaryPublicId()) {
+                $cloudinaryService->deleteImage($image->getCloudinaryPublicId());
+            }
+        }
+        // Delete legacy single image from Cloudinary if exists
+        if ($produit->getCloudinaryPublicId()) {
+            $cloudinaryService->deleteImage($produit->getCloudinaryPublicId());
+        }
+        
         $em->remove($produit);
         $em->flush();
         $this->addFlash('success', 'Produit supprimé avec succès');
@@ -271,6 +685,7 @@ class AdminController extends AbstractController
     #[Route('/produits/{id}/add-size-multi', name: 'admin_produits_add_size_multi')]
     public function addSizeMulti(Request $request, Produit $produit, EntityManagerInterface $em): Response
     {
+        $wizard = $request->query->getBoolean('wizard');
         $sizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
         $error = null;
         if ($request->isMethod('POST')) {
@@ -292,7 +707,7 @@ class AdminController extends AbstractController
                 $produit->setStockTotal();
                 $em->flush();
                 $this->addFlash('success', 'Tailles ajoutées avec succès');
-                return $this->redirectToRoute('admin_produits');
+                return $this->redirectToRoute('admin_produits_colors', ['id' => $produit->getId(), 'wizard' => $wizard ? 1 : null]);
             } else {
                 $error = 'Veuillez saisir au moins une quantité.';
             }
@@ -300,20 +715,22 @@ class AdminController extends AbstractController
         return $this->render('admin/produit_add_size_multi.html.twig', [
             'produit' => $produit,
             'sizes' => $sizes,
-            'error' => $error
+            'error' => $error,
+            'wizard' => $wizard,
         ]);
     }
 
     #[Route('/produits/{id}/set-stock', name: 'admin_produits_set_stock')]
     public function setStock(Request $request, Produit $produit, EntityManagerInterface $em): Response
     {
+        $wizard = $request->query->getBoolean('wizard');
         if ($request->isMethod('POST')) {
             $stock = $request->request->get('stock_total');
             if ($stock !== null && is_numeric($stock) && (int)$stock >= 0) {
                 $produit->setStockTotal((int)$stock);
                 $em->flush();
                 $this->addFlash('success', 'Stock total défini avec succès');
-                return $this->redirectToRoute('admin_produits');
+                return $this->redirectToRoute('admin_produits_colors', ['id' => $produit->getId(), 'wizard' => $wizard ? 1 : null]);
             } else {
                 $error = 'Veuillez saisir un stock valide.';
             }
@@ -322,13 +739,15 @@ class AdminController extends AbstractController
         }
         return $this->render('admin/produit_set_stock.html.twig', [
             'produit' => $produit,
-            'error' => $error
+            'error' => $error,
+            'wizard' => $wizard,
         ]);
     }
 
     #[Route('/produits/{id}/add-size-shoes', name: 'admin_produits_add_size_shoes')]
     public function addSizeShoes(Request $request, Produit $produit, EntityManagerInterface $em): Response
     {
+        $wizard = $request->query->getBoolean('wizard');
         $sizes = ['36', '37', '38', '39', '40', '41', '42', '43', '44', '45'];
         $error = null;
         if ($request->isMethod('POST')) {
@@ -350,7 +769,7 @@ class AdminController extends AbstractController
                 $produit->setStockTotal();
                 $em->flush();
                 $this->addFlash('success', 'Pointures ajoutées avec succès');
-                return $this->redirectToRoute('admin_produits');
+                return $this->redirectToRoute('admin_produits_colors', ['id' => $produit->getId(), 'wizard' => $wizard ? 1 : null]);
             } else {
                 $error = 'Veuillez saisir au moins une quantité.';
             }
@@ -358,7 +777,8 @@ class AdminController extends AbstractController
         return $this->render('admin/produit_add_size_shoes.html.twig', [
             'produit' => $produit,
             'sizes' => $sizes,
-            'error' => $error
+            'error' => $error,
+            'wizard' => $wizard,
         ]);
     }
 
@@ -463,22 +883,34 @@ class AdminController extends AbstractController
     }
 
     #[Route('/commandes/change-status', name: 'admin_commandes_change_status', methods: ['POST'])]
-    public function changeCommandeStatus(Request $request, EntityManagerInterface $em): Response
+    public function changeCommandeStatus(Request $request, EntityManagerInterface $em, PanierService $panierService): Response
     {
         $commandeId = $request->request->get('commande_id');
         $statut = $request->request->get('statut');
         $commande = $em->getRepository(Commande::class)->find($commandeId);
+        
         if (!$commande) {
             $this->addFlash('error', 'Commande non trouvée');
             return $this->redirectToRoute('admin_commandes');
         }
+        
         if (!in_array($statut, ['livrée', 'confirmée', 'annulée'])) {
             $this->addFlash('error', 'Statut invalide');
             return $this->redirectToRoute('admin_commandes');
         }
+
+        // Si la commande est annulée, restaurer les stocks
+        if ($statut === 'annulée' && $commande->getStatutCommande() !== 'annulée') {
+            $lignesCommande = $commande->getLignesCommande()->toArray();
+            $panierService->restaurerStocks($lignesCommande);
+            $this->addFlash('success', 'Statut de la commande mis à jour et stocks restaurés !');
+        } else {
+            $this->addFlash('success', 'Statut de la commande mis à jour !');
+        }
+
         $commande->setStatutCommande($statut);
         $em->flush();
-        $this->addFlash('success', 'Statut de la commande mis à jour !');
+        
         return $this->redirectToRoute('admin_commandes');
     }
 
@@ -573,7 +1005,7 @@ class AdminController extends AbstractController
     }
 
     #[Route('/commandes/edit/{id}', name: 'admin_commandes_edit', methods: ['GET', 'POST'])]
-    public function editCommande(Request $request, EntityManagerInterface $em, int $id): Response
+    public function editCommande(Request $request, EntityManagerInterface $em, int $id, PanierService $panierService): Response
     {
         $commande = $em->getRepository(Commande::class)->find($id);
         if (!$commande) {
@@ -583,11 +1015,20 @@ class AdminController extends AbstractController
             $statut = $request->request->get('statut_commande');
             $adresse = $request->request->get('adresse_livraison');
             $methode = $request->request->get('methode_paiement');
+            
+            // Si la commande est annulée, restaurer les stocks
+            if ($statut === 'annulée' && $commande->getStatutCommande() !== 'annulée') {
+                $lignesCommande = $commande->getLignesCommande()->toArray();
+                $panierService->restaurerStocks($lignesCommande);
+                $this->addFlash('success', 'Commande modifiée avec succès et stocks restaurés');
+            } else {
+                $this->addFlash('success', 'Commande modifiée avec succès');
+            }
+            
             if ($statut) $commande->setStatutCommande($statut);
             if ($adresse) $commande->setAdresseLivraison($adresse);
             if ($methode) $commande->setMethodePaiement($methode);
             $em->flush();
-            $this->addFlash('success', 'Commande modifiée avec succès');
             return $this->redirectToRoute('admin_commandes_view', ['id' => $commande->getId()]);
         }
         return $this->render('admin/commande_edit.html.twig', [

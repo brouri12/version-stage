@@ -22,8 +22,76 @@
             <div class="mb-4">{{ form_row(form.genre, {'label_attr': {'class': 'block text-sm font-medium text-gray-700 mb-1'}, 'attr': {'class': 'block w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500'}}) }}</div>
             <div class="mb-4">{{ form_row(form.categorie, {'label_attr': {'class': 'block text-sm font-medium text-gray-700 mb-1'}, 'attr': {'class': 'block w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500'}}) }}</div>
             <div class="mb-4 text-blue-700 text-sm">Après avoir ajouté le produit, vous pourrez saisir les tailles et quantités.</div>
+            <div class="mb-2 text-purple-700 text-sm">Nouveau: gérez les couleurs et la galerie d'images une fois le produit créé.</div>
             <button type="submit" class="w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-semibold">{{ isEdit ? 'Enregistrer les modifications' : 'Ajouter le produit' }}</button>
         {{ form_end(form) }}
+        {% if isEdit and produit is defined %}
+            <div class="mt-10 bg-white p-6 rounded-lg shadow">
+                <h2 class="text-xl font-bold mb-4">Couleurs</h2>
+                <form method="post" action="{{ path('admin_produits_colors', {'id': produit.id, 'return': 'edit'}) }}" class="mb-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium">Nom</label>
+                        <input type="text" name="name" class="w-full border rounded px-3 py-2" placeholder="ex. Rouge">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium">Code HEX</label>
+                        <input type="text" name="hex" class="w-full border rounded px-3 py-2" placeholder="#FF0000">
+                    </div>
+                    <div class="flex items-end">
+                        <button class="px-4 py-2 bg-purple-600 text-white rounded">Ajouter</button>
+                    </div>
+                </form>
+                <div class="space-y-2">
+                    {% for c in produit.colors %}
+                        <div class="flex items-center justify-between border rounded p-2">
+                            <div class="flex items-center gap-2">
+                                {% if c.hexCode %}<span class="inline-block w-5 h-5 rounded" style="background: {{ c.hexCode }}"></span>{% endif %}
+                                <span class="font-medium">{{ c.name }}</span>
+                            </div>
+                            <form method="post" action="{{ path('admin_produits_colors_delete', {'produitId': produit.id, 'colorId': c.id, 'return': 'edit'}) }}" onsubmit="return confirm('Supprimer cette couleur ?');">
+                                <button class="px-3 py-1 bg-red-500 text-white rounded text-xs">Supprimer</button>
+                            </form>
+                        </div>
+                    {% else %}
+                        <div class="text-gray-500">Aucune couleur</div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            {% set cat = produit.categorie ? produit.categorie.nomCategorie|lower|replace({'é':'e','è':'e','ê':'e','ë':'e'}) : '' %}
+            {% set isVetement = cat matches '/^vetement(s)?$/' %}
+            {% if isVetement %}
+            <div class="mt-10 bg-white p-6 rounded-lg shadow">
+                <h2 class="text-xl font-bold mb-4">Quantités par taille et couleur</h2>
+                {% if produit.produitSizes|length == 0 %}
+                    <div class="text-sm text-gray-600 mb-2">Ajoutez d'abord des tailles à ce produit.</div>
+                {% else %}
+                    <div class="text-sm text-gray-600 mb-4">La somme des quantités par couleur doit être égale à la quantité de chaque taille.</div>
+                    <a href="{{ path('admin_produits_size_color', {'id': produit.id}) }}" class="inline-block mb-4 px-3 py-2 bg-blue-600 text-white rounded">Gérer en plein écran</a>
+                    {% for size in produit.produitSizes %}
+                        <div class="mb-6 border rounded p-3">
+                            <div class="font-semibold mb-2">Taille {{ size.size }} — Quantité: {{ size.quantite }}</div>
+                            <form method="post" action="{{ path('admin_produits_size_color', {'id': produit.id}) }}" class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                <input type="hidden" name="size" value="{{ size.size }}"/>
+                                {% for c in produit.colors %}
+                                    <label class="block">
+                                        <span class="flex items-center gap-2 text-sm mb-1">
+                                            {% if c.hexCode %}<span class="inline-block w-4 h-4 rounded" style="background: {{ c.hexCode }}"></span>{% endif %}
+                                            {{ c.name }}
+                                        </span>
+                                        <input type="number" min="0" name="qty_{{ c.id }}" value="{{ (sizeColorExisting[size.size][c.id] ?? 0) }}" class="w-full border rounded px-3 py-2"/>
+                                    </label>
+                                {% endfor %}
+                                <div class="col-span-full">
+                                    <button class="px-4 py-2 bg-green-600 text-white rounded">Enregistrer pour {{ size.size }}</button>
+                                </div>
+                            </form>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            </div>
+            {% endif %}
+        {% endif %}
         {% if isEdit and produit is defined and produit.produitSizes|length > 0 %}
             <div class="mt-8">
                 <h2 class="text-lg font-semibold mb-4 text-center">Tailles/Pointures existantes</h2>

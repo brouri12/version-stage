@@ -1,0 +1,143 @@
+{% extends 'base.html.twig' %}
+{% block title %}Couleurs - {{ produit.nomProduit }}{% endblock %}
+{% block body %}
+<div class="container mx-auto px-4 py-8">
+    <div class="flex justify-between mb-4">
+        <a href="{{ path('admin_produits') }}" class="px-3 py-2 bg-gray-200 rounded">Retour</a>
+        <div class="flex gap-2">
+          <a href="{{ path('admin_produits_images', {'id': produit.id, 'wizard': wizard ? 1 : null }) }}" class="px-3 py-2 bg-indigo-500 text-white rounded">Gérer images</a>
+          {% if wizard %}
+            <a href="{{ nextUrl }}" class="px-3 py-2 bg-blue-600 text-white rounded">Suivant</a>
+          {% endif %}
+        </div>
+    </div>
+    {% include 'admin/partials/_wizard_steps.html.twig' with { wizard: wizard, steps: steps|default([]), currentStep: currentStep, produit: produit } %}
+    <h1 class="text-2xl font-bold mb-4">Couleurs pour {{ produit.nomProduit }}</h1>
+
+    {% if error %}
+        <div class="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded">{{ error }}</div>
+    {% endif %}
+
+    <form method="post" class="bg-white p-4 rounded shadow max-w-md">
+        <div class="mb-3">
+            <label class="block text-sm font-medium">Nom de la couleur</label>
+            <input type="text" name="name" id="colorName" class="w-full border rounded px-3 py-2" required>
+        </div>
+        <div class="mb-3">
+            <label class="block text-sm font-medium">Couleur</label>
+            <div class="flex items-center gap-3">
+                <input type="color" id="colorPicker" class="w-12 h-10 p-0 border rounded cursor-pointer" value="#000000">
+                <input type="text" name="hex" id="hexInput" placeholder="#000000" class="w-32 border rounded px-3 py-2" value="#000000">
+                <span id="colorPreview" class="inline-block w-8 h-8 rounded-full border" style="background-color:#000000;"></span>
+            </div>
+            <p class="text-xs text-gray-500 mt-1">Vous pouvez choisir une couleur avec le sélecteur ou saisir un code HEX.</p>
+        </div>
+        <button type="submit" class="px-4 py-2 bg-purple-600 text-white rounded">Ajouter</button>
+    </form>
+
+    <div class="mt-8 bg-white rounded shadow">
+        <table class="min-w-full">
+            <thead>
+                <tr class="bg-gray-100">
+                    <th class="px-4 py-2 text-left">Couleur</th>
+                    <th class="px-4 py-2">Images</th>
+                    <th class="px-4 py-2">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in produit.colors %}
+                <tr class="border-t">
+                    <td class="px-4 py-2">
+                        <div class="flex items-center gap-3">
+                            {% if c.hexCode %}<span class="inline-block w-5 h-5 rounded" style="background: {{ c.hexCode }};"></span>{% endif %}
+                            <span class="font-medium">{{ c.name }}</span>
+                        </div>
+                    </td>
+                    <td class="px-4 py-2 text-center">{{ c.images|length }}</td>
+                    <td class="px-4 py-2 text-center">
+                        <form method="post" action="{{ path('admin_produits_colors_delete', {'produitId': produit.id, 'colorId': c.id}) }}" onsubmit="return confirm('Supprimer cette couleur ?');">
+                            <button class="px-3 py-1 bg-red-500 text-white rounded">Supprimer</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="3" class="px-4 py-4 text-center">Aucune couleur</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const picker = document.getElementById('colorPicker');
+        const hex = document.getElementById('hexInput');
+        const nameInput = document.getElementById('colorName');
+        const preview = document.getElementById('colorPreview');
+        let autoName = true;
+        const normalize = (val) => {
+            if (!val) return '';
+            val = val.trim();
+            if (!val.startsWith('#')) val = '#' + val;
+            if (val.length === 4) {
+                // Expand shorthand #abc to #aabbcc
+                val = '#' + val.substring(1).split('').map(ch => ch + ch).join('');
+            }
+            return val;
+        };
+
+        // Common color names table (CSS-like) for closest match
+        const namedColors = [
+          ['Black','#000000'],['White','#FFFFFF'],['Red','#FF0000'],['Lime','#00FF00'],['Blue','#0000FF'],
+          ['Yellow','#FFFF00'],['Cyan','#00FFFF'],['Magenta','#FF00FF'],['Orange','#FFA500'],['Pink','#FFC0CB'],
+          ['Purple','#800080'],['Brown','#A52A2A'],['Gray','#808080'],['DarkGray','#A9A9A9'],['LightGray','#D3D3D3'],
+          ['Navy','#000080'],['Olive','#808000'],['Teal','#008080'],['Maroon','#800000'],['Gold','#FFD700'],
+          ['Beige','#F5F5DC'],['Coral','#FF7F50'],['Crimson','#DC143C'],['Khaki','#F0E68C'],['Lavender','#E6E6FA'],
+          ['LightBlue','#ADD8E6'],['LightGreen','#90EE90'],['Turquoise','#40E0D0'],['Indigo','#4B0082'],['Salmon','#FA8072']
+        ];
+        const hexToRgb = (h) => {
+          h = normalize(h);
+          const r = parseInt(h.substr(1,2),16);
+          const g = parseInt(h.substr(3,2),16);
+          const b = parseInt(h.substr(5,2),16);
+          return [r,g,b];
+        };
+        const dist2 = (a,b) => {
+          const dr=a[0]-b[0], dg=a[1]-b[1], db=a[2]-b[2];
+          return dr*dr+dg*dg+db*db;
+        };
+        const closestName = (h) => {
+          if (!/^#([0-9A-Fa-f]{6})$/.test(normalize(h))) return '';
+          const rgb = hexToRgb(h);
+          let best = null, bestD = Infinity;
+          for (const [n, hx] of namedColors) {
+            const d = dist2(rgb, hexToRgb(hx));
+            if (d < bestD) { bestD = d; best = n; }
+          }
+          return best || '';
+        };
+        const maybeSetName = () => {
+          if (!autoName) return;
+          const n = closestName(hex.value);
+          if (n) nameInput.value = n;
+        };
+
+        nameInput.addEventListener('input', () => { autoName = nameInput.value.trim().length === 0; });
+        picker.addEventListener('input', () => {
+            hex.value = picker.value.toUpperCase();
+            preview.style.backgroundColor = picker.value;
+            maybeSetName();
+        });
+        hex.addEventListener('input', () => {
+            let v = normalize(hex.value);
+            hex.value = v.toUpperCase();
+            // Validate hex (#RRGGBB)
+            if (/^#([0-9A-Fa-f]{6})$/.test(v)) {
+                picker.value = v;
+                preview.style.backgroundColor = v;
+                maybeSetName();
+            }
+        });
+    });
+    </script>
+</div>
+{% endblock %}
+
